@@ -12,29 +12,40 @@ import {
 	CompletionItem, CompletionItemKind
 } from 'vscode-languageserver';
 
+import { DependentFiles } from './dependentFiles';
+import { Completion } from './completion';
+
+let dependentFiles = null;
+let completion = null;
+
 // Create a connection for the server. The connection uses Node's IPC as a transport
 let connection: IConnection = createConnection(new IPCMessageReader(process), new IPCMessageWriter(process));
 
 // Create a simple text document manager. The text document manager
 // supports full document sync only
 let documents: TextDocuments = new TextDocuments();
+
 // Make the text document manager listen on the connection
 // for open, change and close text document events
 documents.listen(connection);
-
 // After the server has started the client sends an initialize request. The server receives
 // in the passed params the rootPath of the workspace plus the client capabilities. 
 let workspaceRoot: string;
 connection.onInitialize((params): InitializeResult => {
 	workspaceRoot = params.rootPath;
 	connection.console.log('rootPath:'+workspaceRoot);
+	
+	dependentFiles = new DependentFiles(workspaceRoot, connection);
+	completion = new Completion(connection, dependentFiles);
+
 	return {
 		capabilities: {
 			// Tell the client that the server works in FULL text document sync mode
 			textDocumentSync: documents.syncKind,
 			// Tell the client that the server support code complete
 			completionProvider: {
-				resolveProvider: true
+				resolveProvider: true,
+				triggerCharacters: ['#','/',',']
 			}
 		}
 	}
@@ -43,6 +54,7 @@ connection.onInitialize((params): InitializeResult => {
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
 documents.onDidChangeContent((change) => {
+	//completion.observe(change.document);
 	validateTextDocument(change.document);
 });
 
@@ -97,24 +109,12 @@ connection.onDidChangeWatchedFiles((change) => {
 	connection.console.log('We received an file change event');
 });
 
-
 // This handler provides the initial list of the completion items.
 connection.onCompletion((textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
 	// The pass parameter contains the position of the text document in 
 	// which code complete got requested. For the example we ignore this
-	// info and always provide the same completion items.
-	return [
-		{
-			label: 'TypeScript',
-			kind: CompletionItemKind.Text,
-			data: 1
-		},
-		{
-			label: 'JavaScript',
-			kind: CompletionItemKind.Text,
-			data: 2
-		}
-	]
+	// info and always provide the same completion items.	
+	return completion.handler(textDocumentPosition);
 });
 
 // This handler resolve additional information for the item selected in
@@ -132,21 +132,16 @@ connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
 
 let t: Thenable<string>;
 
-/*
 connection.onDidOpenTextDocument((params) => {
-	// A text document got opened in VSCode.
-	// params.textDocument.uri uniquely identifies the document. For documents store on disk this is a file URI.
-	// params.textDocument.text the initial full content of the document.
-	connection.console.log(`${params.textDocument.uri} opened.`);
+	dependentFiles.load(params.textDocument.uri);
 });
 
 connection.onDidChangeTextDocument((params) => {
-	// The content of a text document did change in VSCode.
-	// params.textDocument.uri uniquely identifies the document.
-	// params.contentChanges describe the content changes to the document.
-	connection.console.log(`${params.textDocument.uri} changed: ${JSON.stringify(params.contentChanges)}`);
+	completion.observe(params.contentChanges[0].text);
+	//connection.console.log(`${params.textDocument.uri} changed: ${JSON.stringify(params.contentChanges)}`);
 });
 
+/*
 connection.onDidCloseTextDocument((params) => {
 	// A text document got closed in VSCode.
 	// params.textDocument.uri uniquely identifies the document.
