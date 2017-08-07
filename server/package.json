@@ -1,13 +1,15 @@
 {
-  "name": "language-server-example",
-  "description": "Example implementation of a language server in node.",
+  "name": "VSC-Auto-JQ",
+  "description": "Auto complete feature for jquery",
   "version": "0.0.1",
-  "author": "Microsoft Corporation",
+  "author": "",
   "license": "MIT",
   "engines": {
     "node": "*"
   },
   "dependencies": {
+    "jssoup": "0.0.6",
+    "path": "^0.12.7",
     "vscode-languageserver": "^3.1.0"
   },
   "devDependencies": {
@@ -16,6 +18,7 @@
   },
   "scripts": {
     "compile": "installServerIntoExtension ../client ./package.json ./tsconfig.json && tsc -p .",
-    "watch": "installServerIntoExtension ../client ./package.json ./tsconfig.json && tsc --watch -p ."
+    "watch": "installServerIntoExtension ../client ./package.json ./tsconfig.json && tsc --watch -p .",
+    "pkgvars": "node ./node_modules/vscode/bin/install"
   }
 }
